@@ -2,10 +2,11 @@ import { useEffect, useRef } from 'react'
 
 interface Props {
   analyser: AnalyserNode | null
+  label: string
 }
 
 /** Live oscilloscope of the synth's output, triggered on a rising zero crossing so it holds still. */
-export function Scope({ analyser }: Props) {
+export function Scope({ analyser, label }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -53,5 +54,5 @@ export function Scope({ analyser }: Props) {
     return () => cancelAnimationFrame(frame)
   }, [analyser])
 
-  return <canvas ref={canvas} className="scope" width={640} height={120} aria-label="Osciloscopio" role="img" />
+  return <canvas ref={canvas} className="scope" width={640} height={120} aria-label={label} role="img" />
 }

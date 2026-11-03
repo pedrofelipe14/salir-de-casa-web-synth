@@ -11,6 +11,7 @@ import { MIN_BASE_NOTE, noteForKey, noteName, OCTAVE_DOWN, OCTAVE_UP, shiftOctav
 import { defaultValues, ParamId, PARAMS } from './engine/params'
 import { PRESETS, STARTUP_PRESET } from './engine/presets'
 import { defaultPoints, type Point, Wave } from './engine/wave'
+import { initialLang, type Lang, saveLang, STRINGS } from './i18n'
 
 type MidiState = 'off' | 'on' | 'unsupported' | 'denied'
 
@@ -35,6 +36,16 @@ export default function App() {
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null)
   const [preset, setPreset] = useState(STARTUP_PRESET)
   const [midi, setMidi] = useState<MidiState>('off')
+  const [lang, setLang] = useState(initialLang)
+  const t = STRINGS[lang]
+
+  const changeLang = (next: Lang) => {
+    setLang(next)
+    saveLang(next)
+  }
+  useEffect(() => {
+    document.documentElement.lang = lang
+  }, [lang])
 
   // Notes currently held by anything (mouse, keys, MIDI): a note started before the audio
   // engine finished booting is only sent if it's still held once the engine is up.
@@ -164,30 +175,27 @@ export default function App() {
     }
   }
 
-  const knob = (id: ParamId) => <Knob key={id} spec={PARAMS[id]} value={values[id]} onChange={(v) => setParam(id, v)} />
-  const choice = (id: ParamId) => <Choice key={id} spec={PARAMS[id]} value={values[id]} onChange={(v) => setParam(id, v)} />
-  const toggle = (id: ParamId) => <Toggle key={id} spec={PARAMS[id]} value={values[id]} onChange={(v) => setParam(id, v)} />
-  const dropdown = (id: ParamId) => <Dropdown key={id} spec={PARAMS[id]} value={values[id]} onChange={(v) => setParam(id, v)} />
+  const knob = (id: ParamId) => <Knob key={id} spec={PARAMS[id]} value={values[id]} onChange={(v) => setParam(id, v)} lang={lang} />
+  const choice = (id: ParamId) => <Choice key={id} spec={PARAMS[id]} value={values[id]} onChange={(v) => setParam(id, v)} lang={lang} />
+  const toggle = (id: ParamId) => <Toggle key={id} spec={PARAMS[id]} value={values[id]} onChange={(v) => setParam(id, v)} lang={lang} />
+  const dropdown = (id: ParamId) => <Dropdown key={id} spec={PARAMS[id]} value={values[id]} onChange={(v) => setParam(id, v)} lang={lang} />
 
   // What Time and Modify do depends on the wet mode (same as the VST3).
-  const wetHint = [
-    'Tiempo = tamaño de la sala · Modificar = brillo',
-    'Tiempo = tiempo del eco · Modificar = repeticiones',
-    'Tiempo = largo del corte · Modificar = velocidad (reversa · ½ · reversa ×2 · ×2)',
-  ][Math.round(values[ParamId.wetMode])]
+  const wetHint = t.wetHints[Math.round(values[ParamId.wetMode])]
   const glitchOn = values[ParamId.autoGlitch] > 0.5
 
   const oscPanel = (osc: 0 | 1) => {
     const first = osc === 0 ? ParamId.osc1Wave : ParamId.osc2Wave
     return (
-      <section className="panel osc" aria-label={`Oscilador ${osc + 1}`}>
-        <h2>Osc {osc + 1}</h2>
+      <section className="panel osc" aria-label={`${t.oscillator} ${osc + 1}`}>
+        <h2>{t.osc} {osc + 1}</h2>
         <WaveEditor
           title={`OSC ${osc + 1}`}
           wave={values[first] as Wave}
           points={points[osc]}
           onPointsChange={(pts, moved) => setOscPoints(osc, pts, moved)}
           onWaveChange={(w) => setParam(first, w)}
+          text={{ custom: t.waveCustom, hint: t.waveHint, aria: t.waveAria }}
         />
         {choice(first)}
         <div className="knobs">{[first + 1, first + 2, first + 3, first + 4].map(knob)}</div>
@@ -195,52 +203,58 @@ export default function App() {
     )
   }
 
-  const midiLabel = { off: 'Conectar MIDI', on: 'MIDI conectado', unsupported: 'MIDI no disponible', denied: 'MIDI bloqueado' }[midi]
-
   return (
     <div className="app">
       <header className="top">
         <div className="brand">
           <h1>salir de casa</h1>
-          <span className="tagline">web synth · C++ → WebAssembly</span>
+          <span className="tagline">{t.tagline}</span>
         </div>
         <div className="top-controls">
+          <div className="lang" role="radiogroup" aria-label={t.language}>
+            {(['es', 'en'] as const).map((l) => (
+              <button key={l} type="button" role="radio" aria-checked={lang === l} className={lang === l ? 'on' : ''} onClick={() => changeLang(l)}>
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
           <label className="preset">
-            <span>Preset</span>
-            <select value={preset} onChange={(e) => applyPreset(Number(e.target.value))}>
-              {preset === -1 && <option value={-1}>(editado)</option>}
+            <span>{t.preset}</span>
+            {/* Blur after choosing, or the computer keyboard would type into the list (A, G, L... jump presets). */}
+            <select value={preset} onChange={(e) => { applyPreset(Number(e.target.value)); e.target.blur() }}>
+              {preset === -1 && <option value={-1}>{t.edited}</option>}
               {PRESETS.map((p, i) => <option key={p.name} value={i}>{p.name}</option>)}
             </select>
           </label>
           <button type="button" className={`midi ${midi}`} onClick={connectMidi} disabled={midi === 'on'}>
-            {midiLabel}
+            {t.midi[midi]}
           </button>
         </div>
       </header>
 
       {!started && (
         <button type="button" className="power" onClick={start}>
-          ▶ Encender el sonido
-          <small>o tocá cualquier tecla del piano</small>
+          {t.power}
+          <small>{t.powerHint}</small>
         </button>
       )}
 
       <main className="rack">
         {oscPanel(0)}
         {oscPanel(1)}
-        <section className="panel env" aria-label="Envolvente">
-          <h2>Envolvente</h2>
+        <section className="panel env" aria-label={t.envelope}>
+          <h2>{t.envelope}</h2>
           <div className="knobs">{[ParamId.attack, ParamId.decay, ParamId.sustain, ParamId.release].map(knob)}</div>
         </section>
-        <section className="panel filter" aria-label="Filtro">
-          <h2>Filtro</h2>
+        <section className="panel filter" aria-label={t.filter}>
+          <h2>{t.filter}</h2>
           <div className="knobs">{[ParamId.cutoff, ParamId.resonance, ParamId.filterEnv].map(knob)}</div>
         </section>
-        <section className="panel out" aria-label="Salida">
-          <h2>Salida</h2>
+        <section className="panel out" aria-label={t.output}>
+          <h2>{t.output}</h2>
           <div className="out-row">
             {knob(ParamId.volume)}
-            <Scope analyser={analyser} />
+            <Scope analyser={analyser} label={t.scope} />
           </div>
         </section>
 
@@ -271,18 +285,18 @@ export default function App() {
             {toggle(ParamId.autoGlitch)}
             {toggle(ParamId.loopKeep)}
           </div>
-          {!glitchOn && <p className="panel-hint">Prendé Auto-Glitch para que el micro-loop procese el sinte.</p>}
+          {!glitchOn && <p className="panel-hint">{t.glitchOffHint}</p>}
         </section>
       </main>
 
       <footer className="keys">
         <div className="keys-info">
           <span>
-            Octava <strong>{noteName(baseNote)}</strong>
-            <button type="button" aria-label="Bajar octava" disabled={baseNote <= MIN_BASE_NOTE} onClick={() => setBaseNote((b) => shiftOctave(b, OCTAVE_DOWN))}>−</button>
-            <button type="button" aria-label="Subir octava" onClick={() => setBaseNote((b) => shiftOctave(b, OCTAVE_UP))}>+</button>
+            {t.octave} <strong>{noteName(baseNote)}</strong>
+            <button type="button" aria-label={t.octaveDown} disabled={baseNote <= MIN_BASE_NOTE} onClick={() => setBaseNote((b) => shiftOctave(b, OCTAVE_DOWN))}>−</button>
+            <button type="button" aria-label={t.octaveUp} onClick={() => setBaseNote((b) => shiftOctave(b, OCTAVE_UP))}>+</button>
           </span>
-          <span className="hint">Teclado: A W S E D F T G Y H U J K O L P Ñ · Z/X cambia de octava</span>
+          <span className="hint">{t.keyboardHint}</span>
         </div>
         <Piano
           lowest={baseNote}
@@ -290,12 +304,12 @@ export default function App() {
           active={active}
           keyboardBase={baseNote}
           showLetters
+          ariaLabel={t.keyboard}
           onNoteOn={(n) => noteOn(n)}
           onNoteOff={noteOff}
         />
         <p className="credits">
-          El motor de audio es C++ compilado a WebAssembly y corre en un AudioWorklet ·{' '}
-          <a href={REPO_URL}>código</a> · <a href={PLUGIN_URL}>plugin VST3</a>
+          {t.credits} · <a href={REPO_URL}>{t.code}</a> · <a href={PLUGIN_URL}>{t.plugin}</a>
         </p>
       </footer>
     </div>

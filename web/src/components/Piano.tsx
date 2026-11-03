@@ -10,10 +10,11 @@ interface Props {
   showLetters: boolean
   onNoteOn: (note: number) => void
   onNoteOff: (note: number) => void
+  ariaLabel: string
 }
 
 /** On-screen keys. Click or touch to play; slide across for a glissando. */
-export function Piano({ lowest, octaves, active, keyboardBase, showLetters, onNoteOn, onNoteOff }: Props) {
+export function Piano({ lowest, octaves, active, keyboardBase, showLetters, ariaLabel, onNoteOn, onNoteOff }: Props) {
   const held = useRef(new Map<number, number>()) // pointerId -> note
 
   const notes = Array.from({ length: octaves * 12 + 1 }, (_, i) => lowest + i)
@@ -41,7 +42,7 @@ export function Piano({ lowest, octaves, active, keyboardBase, showLetters, onNo
     <div
       className="piano"
       role="group"
-      aria-label="Teclado"
+      aria-label={ariaLabel}
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId)
         press(e.pointerId, noteAt(e.clientX, e.clientY))

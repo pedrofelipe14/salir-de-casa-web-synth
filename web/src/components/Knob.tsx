@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react'
-import { formatValue, fromNormalized, toNormalized, type ParamSpec } from '../engine/params'
+import { formatValue, fromNormalized, labelOf, toNormalized, type Lang, type ParamSpec } from '../engine/params'
 
 interface Props {
   spec: ParamSpec
   value: number
   onChange: (value: number) => void
+  lang: Lang
 }
 
 const START = (-135 * Math.PI) / 180 // 7:30 on a clock face
@@ -26,7 +27,8 @@ function arc(from: number, to: number, radius: number): string {
 }
 
 /** Drag up/down (Shift for fine), scroll, arrow keys; double-click resets. */
-export function Knob({ spec, value, onChange }: Props) {
+export function Knob({ spec, value, onChange, lang }: Props) {
+  const label = labelOf(spec, lang)
   const ref = useRef<HTMLDivElement>(null)
   const drag = useRef<{ y: number; n: number } | null>(null)
   const norm = toNormalized(spec, value)
@@ -57,17 +59,17 @@ export function Knob({ spec, value, onChange }: Props) {
 
   return (
     <div className="control">
-      <span className="control-label">{spec.label}</span>
+      <span className="control-label">{label}</span>
       <div
         ref={ref}
         className="knob"
         role="slider"
         tabIndex={0}
-        aria-label={spec.label}
+        aria-label={label}
         aria-valuemin={spec.min}
         aria-valuemax={spec.max}
         aria-valuenow={value}
-        aria-valuetext={formatValue(spec, value)}
+        aria-valuetext={formatValue(spec, value, lang)}
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture(e.pointerId)
           drag.current = { y: e.clientY, n: norm }
@@ -98,7 +100,7 @@ export function Knob({ spec, value, onChange }: Props) {
           <line x1={SIZE / 2} y1={SIZE / 2} x2={tip.x} y2={tip.y} className="knob-pointer" />
         </svg>
       </div>
-      <span className="control-value">{formatValue(spec, value)}</span>
+      <span className="control-value">{formatValue(spec, value, lang)}</span>
     </div>
   )
 }

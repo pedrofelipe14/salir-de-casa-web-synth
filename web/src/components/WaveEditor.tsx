@@ -8,6 +8,8 @@ interface Props {
   /** Called with the full new set of points and which one moved. */
   onPointsChange: (points: Point[], moved: number[]) => void
   onWaveChange: (wave: Wave) => void
+  /** Interface text in the current language. */
+  text: { custom: string; hint: string; aria: string }
 }
 
 const W = 520
@@ -19,7 +21,7 @@ const toScreen = (p: Point) => ({ x: PAD + p.x * (W - 2 * PAD), y: H / 2 - p.y *
 
 /** The oscillator's cycle, with points you drag to reshape it. Grabbing a point while a
     preset shape is playing starts from that shape and switches the oscillator to "Propia". */
-export function WaveEditor({ title, wave, points, onPointsChange, onWaveChange }: Props) {
+export function WaveEditor({ title, wave, points, onPointsChange, onWaveChange, text }: Props) {
   const svg = useRef<SVGSVGElement>(null)
   const [dragging, setDragging] = useState<number | null>(null)
   const [hover, setHover] = useState<number | null>(null)
@@ -62,14 +64,14 @@ export function WaveEditor({ title, wave, points, onPointsChange, onWaveChange }
     <div className="wave-editor">
       <div className="wave-head">
         <span>{title}</span>
-        <span className="wave-hint">{custom ? 'onda propia' : 'arrastrá un punto para editar'}</span>
+        <span className="wave-hint">{custom ? text.custom : text.hint}</span>
       </div>
       <svg
         ref={svg}
         viewBox={`0 0 ${W} ${H}`}
         className={hover !== null || dragging !== null ? 'grab' : ''}
         role="img"
-        aria-label={`${title}: forma de onda`}
+        aria-label={`${title}: ${text.aria}`}
         onPointerDown={(e) => {
           const index = nearest(e)
           if (index === null) return

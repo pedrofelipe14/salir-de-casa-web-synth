@@ -17,17 +17,25 @@ Es la versión web del [plugin VST3 Salir de Casa](https://github.com/pedrofelip
 - **Dos osciladores** por voz: seno, sierra, cuadrada, triangular o una **onda propia que se dibuja arrastrando puntos**.
 - **Filtro pasa-bajos resonante** con envolvente y **ADSR** de amplitud.
 - **LFO** hacia filtro, tono o volumen (seno, triangular, sierra, cuadrada o aleatorio).
-- **Delay estéreo ping-pong** con repeticiones amortiguadas, y limitador suave de salida.
+- **Sección WET** con tres modos, como en el plugin:
+  - **Reverb**: Freeverb, el mismo algoritmo que el plugin toma de JUCE;
+  - **Delay**: tipo cinta, con repeticiones que se oscurecen;
+  - **Slip**: repeticiones al revés o a otra octava.
+- **Micro-loop glitch**, un port del motor del plugin:
+  - graba el sinte en vivo, congela granos y los repite transpuestos a intervalos musicales;
+  - los da vuelta y los degrada (bitcrush) a medida que se repiten;
+  - "Caos" le suma vibrato de cinta y reversas al azar.
+- Ruteo configurable (Loop → Wet o Wet → Loop) y limitador suave de salida.
 - Se toca con el **mouse o el dedo** (arrastrando hacés glissando), con el **teclado de la computadora** o con un **controlador MIDI** (Web MIDI).
-- **Presets** y **osciloscopio** en vivo.
+- Los **presets de fábrica del plugin** y **osciloscopio** en vivo.
 
 ## Cómo funciona
 
 ```
 Interfaz React (hilo principal)               AudioWorklet (hilo de audio)
   perillas · editor de onda · teclado · MIDI ──►  synth-processor.js
-           postMessage(nota / parámetro)            └─ sdc.wasm  (motor C++, 39 KB)
-                                                       8 voces → delay → limitador → parlantes
+           postMessage(nota / parámetro)            └─ sdc.wasm  (motor C++, 56 KB)
+                                                       8 voces → wet ⇄ micro-loop → limitador → parlantes
 ```
 
 - **`dsp/`**: el motor, en C++17 portable, solo en headers y sin dependencias.
@@ -35,21 +43,24 @@ Interfaz React (hilo principal)               AudioWorklet (hilo de audio)
   - Una curva Catmull-Rom para la onda propia.
   - Un filtro *state-variable* TPT, estable con modulación rápida.
   - ADSR lineal, LFO por voz, bloqueo de DC y *de-click* al reutilizar voces.
+  - La sección WET (Freeverb, delay de cinta, slip) y el micro-loop granular, los dos portados del VST3 sin JUCE.
 - **`dsp/src/wasm_api.cpp`**: una API en C chiquita que Emscripten compila a un **`.wasm` independiente, sin código JavaScript intermedio**. El worklet lo carga directamente y lee el audio de la memoria del módulo, sin pedir memoria nueva en el hilo de audio.
 - **`web/`**: la app de React. Las notas y los cambios de parámetros viajan al worklet como mensajes. La interfaz tiene una copia en TypeScript de la tabla de parámetros del motor, y un test falla si alguna vez dejan de coincidir.
 
 ## Tests
 
-- **17 tests nativos en C++** sobre el DSP:
+- **24 tests nativos en C++** sobre el DSP:
   - los osciladores no se pasan de rango y no tienen offset de DC;
   - la onda propia sigue sus puntos;
   - la envolvente respeta sus tiempos;
   - el filtro deja pasar los graves, corta los agudos y es estable en valores extremos;
-  - la reutilización de voces funciona y la salida nunca supera el máximo.
-- **26 tests web con Vitest**:
+  - la reutilización de voces funciona y la salida nunca supera el máximo;
+  - la reverb y el delay dejan cola, y el slip es estable en todas sus velocidades;
+  - el micro-loop solo corre con Auto-Glitch, sigue loopeando con "Mantener" y, si no, se apaga con la entrada.
+- **31 tests web con Vitest**:
   - mapeo de las perillas, formato de los valores y teclado de la computadora;
   - que la tabla de parámetros coincida con el header de C++;
-  - cargan el **`sdc.wasm` compilado real** y verifican que toque notas y que haga silencio al soltarlas.
+  - cargan el **`sdc.wasm` compilado real** y verifican que toque notas, que corra el micro-loop y que haga silencio al soltarlas.
 - **GitHub Actions** corre todo en cada push y después publica el sitio en GitHub Pages.
 
 ## Correrlo localmente

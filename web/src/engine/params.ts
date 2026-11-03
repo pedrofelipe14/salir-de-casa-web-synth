@@ -7,13 +7,16 @@ export enum ParamId {
   attack, decay, sustain, release,
   cutoff, resonance, filterEnv,
   lfoShape, lfoTarget, lfoRate, lfoDepth,
-  delayMix, delayTime, delayFeedback,
+  wetMode, wetMix, wetTime, wetModify, routeOrder,
+  glitchMix, glitchGrainSize, loopInterval, loopJumps, glitchHold,
+  glitchDegrade, glitchChaos, glitchReverse, glitchTilt, autoGlitch, loopKeep,
   volume,
 }
 
 export const PARAM_COUNT = ParamId.volume + 1
 
-export type Unit = 'percent' | 'seconds' | 'hertz' | 'semitones' | 'cents' | 'octaves' | 'decibels' | 'q' | 'choice'
+export type Unit = 'percent' | 'seconds' | 'milliseconds' | 'hertz' | 'semitones' | 'cents' | 'octaves'
+  | 'decibels' | 'q' | 'choice' | 'toggle'
 
 export interface ParamSpec {
   id: ParamId
@@ -31,6 +34,9 @@ export interface ParamSpec {
 export const WAVES = ['Seno', 'Sierra', 'Cuadrada', 'Triangular', 'Propia']
 export const LFO_SHAPES = ['Seno', 'Triangular', 'Sierra', 'Cuadrada', 'Azar']
 export const LFO_TARGETS = ['Filtro', 'Tono', 'Volumen']
+export const WET_MODES = ['Reverb', 'Delay', 'Slip']
+export const ROUTE_ORDERS = ['Loop > Wet', 'Wet > Loop']
+export const LOOP_INTERVALS = ['-2 oct', '-1 oct', '-5ta', '-4ta', 'Unísono', '+4ta', '+5ta', '+1 oct', '+1 oct +5ta', '+2 oct']
 
 const spec = (id: ParamId, label: string, min: number, max: number, defaultValue: number, unit: Unit,
   extra: Partial<ParamSpec> = {}): ParamSpec => ({ id, label, min, max, defaultValue, unit, ...extra })
@@ -49,7 +55,7 @@ export const PARAMS: ParamSpec[] = [
   spec(ParamId.attack, 'Ataque', 0.001, 5, 0.01, 'seconds', { skew: 0.3 }),
   spec(ParamId.decay, 'Decaimiento', 0.001, 5, 0.1, 'seconds', { skew: 0.3 }),
   spec(ParamId.sustain, 'Sustain', 0, 1, 0.8, 'percent'),
-  spec(ParamId.release, 'Release', 0.001, 5, 0.3, 'seconds', { skew: 0.3 }),
+  spec(ParamId.release, 'Release', 0.001, 5, 0.2, 'seconds', { skew: 0.3 }),
   spec(ParamId.cutoff, 'Corte', 20, 20000, 4000, 'hertz', { skew: 0.3 }),
   spec(ParamId.resonance, 'Resonancia', 0.1, 10, 0.7, 'q', { skew: 0.4 }),
   spec(ParamId.filterEnv, 'Envolvente', -48, 48, 24, 'semitones'),
@@ -57,10 +63,23 @@ export const PARAMS: ParamSpec[] = [
   spec(ParamId.lfoTarget, 'Destino', 0, 2, 0, 'choice', { integer: true, choices: LFO_TARGETS }),
   spec(ParamId.lfoRate, 'Velocidad', 0.05, 20, 4, 'hertz', { skew: 0.3 }),
   spec(ParamId.lfoDepth, 'Profundidad', 0, 1, 0, 'percent'),
-  spec(ParamId.delayMix, 'Mezcla', 0, 1, 0.2, 'percent'),
-  spec(ParamId.delayTime, 'Tiempo', 0.02, 1.5, 0.35, 'seconds', { skew: 0.5 }),
-  spec(ParamId.delayFeedback, 'Repeticiones', 0, 0.95, 0.4, 'percent'),
-  spec(ParamId.volume, 'Volumen', -48, 6, -6, 'decibels', { skew: 2 }),
+  spec(ParamId.wetMode, 'Modo', 0, 2, 0, 'choice', { integer: true, choices: WET_MODES }),
+  spec(ParamId.wetMix, 'Mezcla', 0, 1, 0, 'percent'),
+  spec(ParamId.wetTime, 'Tiempo', 0, 1, 0.5, 'percent'),
+  spec(ParamId.wetModify, 'Modificar', 0, 1, 0.5, 'percent'),
+  spec(ParamId.routeOrder, 'Orden', 0, 1, 0, 'choice', { integer: true, choices: ROUTE_ORDERS }),
+  spec(ParamId.glitchMix, 'Mezcla', 0, 1, 0, 'percent'),
+  spec(ParamId.glitchGrainSize, 'Largo', 20, 1000, 250, 'milliseconds', { skew: 0.4 }),
+  spec(ParamId.loopInterval, 'Intervalo', 0, 9, 4, 'choice', { integer: true, choices: LOOP_INTERVALS }),
+  spec(ParamId.loopJumps, 'Saltos', 0, 1, 0, 'percent'),
+  spec(ParamId.glitchHold, 'Repetir', 0, 1, 0.3, 'percent'),
+  spec(ParamId.glitchDegrade, 'Degradación', 0, 1, 0.2, 'percent'),
+  spec(ParamId.glitchChaos, 'Caos', 0, 1, 0.2, 'percent'),
+  spec(ParamId.glitchReverse, 'Reversa', 0, 1, 0.1, 'percent'),
+  spec(ParamId.glitchTilt, 'Tilt', 0, 1, 0.5, 'percent'),
+  spec(ParamId.autoGlitch, 'Auto-Glitch', 0, 1, 0, 'toggle', { integer: true }),
+  spec(ParamId.loopKeep, 'Mantener', 0, 1, 0, 'toggle', { integer: true }),
+  spec(ParamId.volume, 'Volumen', -24, 12, 0, 'decibels'),
 ]
 
 export const defaultValues = (): number[] => PARAMS.map((p) => p.defaultValue)
@@ -88,6 +107,7 @@ export function formatValue(p: ParamSpec, v: number): string {
   switch (p.unit) {
     case 'percent': return `${Math.round(v * 100)} %`
     case 'seconds': return v < 1 ? `${Math.round(v * 1000)} ms` : `${v.toFixed(2)} s`
+    case 'milliseconds': return `${Math.round(v)} ms`
     case 'hertz':
       if (v < 10) return `${v.toFixed(2)} Hz`
       return v < 1000 ? `${Math.round(v)} Hz` : `${(v / 1000).toFixed(2)} kHz`
@@ -97,5 +117,6 @@ export function formatValue(p: ParamSpec, v: number): string {
     case 'decibels': return `${signed(v, 1)} dB`
     case 'q': return v.toFixed(2)
     case 'choice': return p.choices?.[Math.round(v)] ?? String(v)
+    case 'toggle': return v > 0.5 ? 'Sí' : 'No'
   }
 }

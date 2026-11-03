@@ -4,19 +4,21 @@
 #include <cmath>
 #include <vector>
 
+#include "glitch.h"
 #include "params.h"
 #include "voice.h"
+#include "wet.h"
 
 namespace sdc
 {
-/** The whole instrument: 8 voices, a stereo ping-pong delay and a soft limiter.
+/** The whole instrument, wired like the VST3's processBlock:
+    8 voices → (wet first?) → micro-loop (when Auto-Glitch is on) → (wet last?) → volume → soft limiter.
     Not thread-safe: in the browser it lives entirely inside the AudioWorklet. */
 class Synth
 {
 public:
     static constexpr int numVoices = 8;
     static constexpr int maxBlock = 512;
-    static constexpr float maxDelaySeconds = 2.0f;
 
     Synth()
     {
@@ -24,8 +26,8 @@ public:
             values[(size_t) p] = paramInfo[p].defaultValue;
         settings.customWave[0] = &customWaves[0];
         settings.customWave[1] = &customWaves[1];
-        updateSettings();
         setSampleRate(48000.0);
+        updateSettings();
     }
 
     void setSampleRate(double sr)
@@ -33,13 +35,9 @@ public:
         sampleRate = sr;
         for (auto& v : voices)
             v.setSampleRate(sr);
-        const size_t delaySize = (size_t) (maxDelaySeconds * sr) + 4;
-        delayL.assign(delaySize, 0.0f);
-        delayR.assign(delaySize, 0.0f);
-        writePos = 0;
-        smoothCoeff = (float) std::exp(-1.0 / (0.02 * sr)); // ~20 ms for volume and delay time
-        dampCoeff = (float) std::exp(-6.283185307179586 * 3500.0 / sr); // 3.5 kHz in the echoes
-        smoothedDelaySamples = delaySamplesTarget();
+        wet.prepare(sr, maxBlock);
+        glitch.prepare(sr);
+        gainCoeff = (float) std::exp(-1.0 / (0.02 * sr)); // ~20 ms volume smoothing
     }
 
     float getParam(Param p) const { return values[(size_t) p]; }
@@ -115,6 +113,8 @@ public:
         return n;
     }
 
+    bool isLooping() const { return glitch.isLooping(); }
+
     /** Renders numSamples (split internally into blocks of maxBlock) into left and right. */
     void process(float* left, float* right, int numSamples)
     {
@@ -132,72 +132,74 @@ private:
     void processBlock(float* left, float* right, int n)
     {
         for (int i = 0; i < n; ++i)
-            mono[(size_t) i] = 0.0f;
+            left[i] = 0.0f;
         for (auto& v : voices)
             if (v.isActive())
-                v.render(settings, mono.data(), n);
+                v.render(settings, left, n);
+        for (int i = 0; i < n; ++i)
+            right[i] = left[i];
 
-        const float mix = values[(size_t) Param::delayMix];
-        const float feedback = values[(size_t) Param::delayFeedback];
-        const float targetDelay = delaySamplesTarget();
+        const bool wetFirst = values[(size_t) Param::routeOrder] > 0.5f;
+        const bool autoGlitch = values[(size_t) Param::autoGlitch] > 0.5f;
+
+        if (wetFirst)
+            wet.process(left, right, n);
+        if (autoGlitch)
+            glitch.process(left, right, n);
+        if (!wetFirst)
+            wet.process(left, right, n);
+
         const float targetGain = std::pow(10.0f, values[(size_t) Param::volume] / 20.0f);
-        const size_t size = delayL.size();
-
         for (int i = 0; i < n; ++i)
         {
-            smoothedDelaySamples = targetDelay + smoothCoeff * (smoothedDelaySamples - targetDelay);
-            smoothedGain = targetGain + smoothCoeff * (smoothedGain - targetGain);
-
-            // Fractional read so moving the delay time glides instead of clicking.
-            float readPos = (float) writePos - smoothedDelaySamples;
-            while (readPos < 0.0f)
-                readPos += (float) size;
-            const size_t i0 = (size_t) readPos % size;
-            const size_t i1 = (i0 + 1) % size;
-            const float frac = readPos - std::floor(readPos);
-            const float echoL = delayL[i0] + frac * (delayL[i1] - delayL[i0]);
-            const float echoR = delayR[i0] + frac * (delayR[i1] - delayR[i0]);
-
-            dampL = echoL + dampCoeff * (dampL - echoL);
-            dampR = echoR + dampCoeff * (dampR - echoR);
-
-            const float dry = mono[(size_t) i];
-            // Ping-pong: the dry signal enters on the left, each repeat crosses sides.
-            delayL[writePos] = dry + feedback * dampR;
-            delayR[writePos] = feedback * dampL;
-            writePos = (writePos + 1) % size;
-
+            gain = targetGain + gainCoeff * (gain - targetGain);
             // Soft limiter: loud chords saturate gently instead of hard-clipping.
-            left[i] = std::tanh((dry + mix * echoL) * smoothedGain);
-            right[i] = std::tanh((dry + mix * echoR) * smoothedGain);
+            left[i] = std::tanh(left[i] * gain);
+            right[i] = std::tanh(right[i] * gain);
         }
-    }
-
-    float delaySamplesTarget() const
-    {
-        return values[(size_t) Param::delayTime] * (float) sampleRate;
     }
 
     void updateSettings()
     {
         const auto v = [this](Param p) { return values[(size_t) p]; };
+        const auto index = [&](Param p) { return (int) std::lround(v(p)); };
 
-        settings.wave[0] = (Wave) (int) std::lround(v(Param::osc1Wave));
-        settings.wave[1] = (Wave) (int) std::lround(v(Param::osc2Wave));
+        settings.wave[0] = (Wave) index(Param::osc1Wave);
+        settings.wave[1] = (Wave) index(Param::osc2Wave);
         settings.level[0] = v(Param::osc1Level);
         settings.level[1] = v(Param::osc2Level);
-        settings.pitchOffset[0] = 12.0f * std::round(v(Param::osc1Octave)) + std::round(v(Param::osc1Semitone)) + v(Param::osc1Fine) / 100.0f;
-        settings.pitchOffset[1] = 12.0f * std::round(v(Param::osc2Octave)) + std::round(v(Param::osc2Semitone)) + v(Param::osc2Fine) / 100.0f;
+        settings.pitchOffset[0] = 12.0f * (float) index(Param::osc1Octave) + (float) index(Param::osc1Semitone) + v(Param::osc1Fine) / 100.0f;
+        settings.pitchOffset[1] = 12.0f * (float) index(Param::osc2Octave) + (float) index(Param::osc2Semitone) + v(Param::osc2Fine) / 100.0f;
         settings.cutoff = v(Param::cutoff);
         settings.resonance = v(Param::resonance);
         settings.filterEnv = v(Param::filterEnv);
-        settings.lfoShape = (LfoShape) (int) std::lround(v(Param::lfoShape));
-        settings.lfoTarget = (LfoTarget) (int) std::lround(v(Param::lfoTarget));
+        settings.lfoShape = (LfoShape) index(Param::lfoShape);
+        settings.lfoTarget = (LfoTarget) index(Param::lfoTarget);
         settings.lfoRate = v(Param::lfoRate);
         settings.lfoDepth = v(Param::lfoDepth);
 
         for (auto& voice : voices)
             voice.getEnvelope().setParameters(v(Param::attack), v(Param::decay), v(Param::sustain), v(Param::release));
+
+        WetEngine::Params w;
+        w.mode = (WetEngine::Mode) index(Param::wetMode);
+        w.mix = v(Param::wetMix);
+        w.time = v(Param::wetTime);
+        w.modify = v(Param::wetModify);
+        wet.setParams(w);
+
+        GlitchEngine::Params g;
+        g.mix = v(Param::glitchMix);
+        g.grainSizeMs = v(Param::glitchGrainSize);
+        g.intervalSemitones = GlitchEngine::intervalChoices[(size_t) index(Param::loopInterval)];
+        g.jumpChance = v(Param::loopJumps);
+        g.holdAmount = v(Param::glitchHold);
+        g.degrade = v(Param::glitchDegrade);
+        g.chaos = v(Param::glitchChaos);
+        g.reverseAmount = v(Param::glitchReverse);
+        g.toneTilt = v(Param::glitchTilt);
+        g.keepLooping = v(Param::loopKeep) > 0.5f;
+        glitch.setParams(g);
     }
 
     double sampleRate = 48000.0;
@@ -205,14 +207,11 @@ private:
     VoiceSettings settings;
     std::array<CustomWave, 2> customWaves;
     std::array<Voice, numVoices> voices;
-    std::array<float, maxBlock> mono {};
     uint32_t startCounter = 0;
 
-    std::vector<float> delayL, delayR;
-    size_t writePos = 0;
-    float smoothedDelaySamples = 0.0f;
-    float dampL = 0.0f, dampR = 0.0f, dampCoeff = 0.5f;
-    float smoothedGain = 0.5f;
-    float smoothCoeff = 0.999f;
+    WetEngine wet;
+    GlitchEngine glitch;
+    float gain = 1.0f;
+    float gainCoeff = 0.999f;
 };
 } // namespace sdc

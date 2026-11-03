@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Choice } from './components/Choice'
+import { Dropdown } from './components/Dropdown'
 import { Knob } from './components/Knob'
 import { Piano } from './components/Piano'
 import { Scope } from './components/Scope'
+import { Toggle } from './components/Toggle'
 import { WaveEditor } from './components/WaveEditor'
 import { SynthEngine } from './engine/engine'
 import { MIN_BASE_NOTE, noteForKey, noteName, OCTAVE_DOWN, OCTAVE_UP, shiftOctave } from './engine/keyboard'
 import { defaultValues, ParamId, PARAMS } from './engine/params'
-import { PRESETS } from './engine/presets'
+import { PRESETS, STARTUP_PRESET } from './engine/presets'
 import { defaultPoints, type Point, Wave } from './engine/wave'
 
 type MidiState = 'off' | 'on' | 'unsupported' | 'denied'
@@ -15,15 +17,23 @@ type MidiState = 'off' | 'on' | 'unsupported' | 'denied'
 const REPO_URL = 'https://github.com/pedrofelipe14/salir-de-casa-web-synth'
 const PLUGIN_URL = 'https://github.com/pedrofelipe14/GlitchSynth'
 
+/** Parameter values and wave points a preset sets (anything it leaves out goes back to default). */
+function presetState(index: number): { values: number[]; points: Point[][] } {
+  const p = PRESETS[index]
+  const values = defaultValues()
+  for (const [id, v] of Object.entries(p.values)) values[Number(id)] = v
+  return { values, points: [0, 1].map((osc) => p.points?.[osc] ?? defaultPoints()) }
+}
+
 export default function App() {
   const engine = useMemo(() => new SynthEngine(), [])
-  const [values, setValues] = useState(defaultValues)
-  const [points, setPoints] = useState<Point[][]>(() => [defaultPoints(), defaultPoints()])
+  const [values, setValues] = useState(() => presetState(STARTUP_PRESET).values)
+  const [points, setPoints] = useState(() => presetState(STARTUP_PRESET).points)
   const [active, setActive] = useState<Set<number>>(() => new Set())
   const [baseNote, setBaseNote] = useState(60)
   const [started, setStarted] = useState(false)
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null)
-  const [preset, setPreset] = useState(0)
+  const [preset, setPreset] = useState(STARTUP_PRESET)
   const [midi, setMidi] = useState<MidiState>('off')
 
   // Notes currently held by anything (mouse, keys, MIDI): a note started before the audio
@@ -71,16 +81,20 @@ export default function App() {
   }
 
   const applyPreset = (index: number) => {
-    const p = PRESETS[index]
-    const next = defaultValues()
-    for (const [id, v] of Object.entries(p.values)) next[Number(id)] = v
+    const { values: next, points: nextPoints } = presetState(index)
     next.forEach((v, id) => engine.setParam(id, v))
-    const nextPoints = [0, 1].map((osc) => p.points?.[osc] ?? defaultPoints())
     nextPoints.forEach((pts, osc) => pts.forEach((pt, i) => engine.setWavePoint(osc, i, pt)))
     setValues(next)
     setPoints(nextPoints)
     setPreset(index)
   }
+
+  // The engine starts from defaults; bring it to the startup preset the UI is showing.
+  useEffect(() => {
+    const { values: v, points: p } = presetState(STARTUP_PRESET)
+    v.forEach((value, id) => engine.setParam(id, value))
+    p.forEach((pts, osc) => pts.forEach((pt, i) => engine.setWavePoint(osc, i, pt)))
+  }, [engine])
 
   // Computer keyboard. Each key remembers the note it started, so changing octave
   // mid-note (Z/X) can't leave a note stuck.
@@ -152,6 +166,16 @@ export default function App() {
 
   const knob = (id: ParamId) => <Knob key={id} spec={PARAMS[id]} value={values[id]} onChange={(v) => setParam(id, v)} />
   const choice = (id: ParamId) => <Choice key={id} spec={PARAMS[id]} value={values[id]} onChange={(v) => setParam(id, v)} />
+  const toggle = (id: ParamId) => <Toggle key={id} spec={PARAMS[id]} value={values[id]} onChange={(v) => setParam(id, v)} />
+  const dropdown = (id: ParamId) => <Dropdown key={id} spec={PARAMS[id]} value={values[id]} onChange={(v) => setParam(id, v)} />
+
+  // What Time and Modify do depends on the wet mode (same as the VST3).
+  const wetHint = [
+    'Tiempo = tamaño de la sala · Modificar = brillo',
+    'Tiempo = tiempo del eco · Modificar = repeticiones',
+    'Tiempo = largo del corte · Modificar = velocidad (reversa · ½ · reversa ×2 · ×2)',
+  ][Math.round(values[ParamId.wetMode])]
+  const glitchOn = values[ParamId.autoGlitch] > 0.5
 
   const oscPanel = (osc: 0 | 1) => {
     const first = osc === 0 ? ParamId.osc1Wave : ParamId.osc2Wave
@@ -208,19 +232,9 @@ export default function App() {
           <h2>Envolvente</h2>
           <div className="knobs">{[ParamId.attack, ParamId.decay, ParamId.sustain, ParamId.release].map(knob)}</div>
         </section>
-        <section className="panel" aria-label="Filtro">
+        <section className="panel filter" aria-label="Filtro">
           <h2>Filtro</h2>
           <div className="knobs">{[ParamId.cutoff, ParamId.resonance, ParamId.filterEnv].map(knob)}</div>
-        </section>
-        <section className="panel lfo" aria-label="LFO">
-          <h2>LFO</h2>
-          {choice(ParamId.lfoShape)}
-          {choice(ParamId.lfoTarget)}
-          <div className="knobs">{[ParamId.lfoRate, ParamId.lfoDepth].map(knob)}</div>
-        </section>
-        <section className="panel delay" aria-label="Delay">
-          <h2>Delay</h2>
-          <div className="knobs">{[ParamId.delayMix, ParamId.delayTime, ParamId.delayFeedback].map(knob)}</div>
         </section>
         <section className="panel out" aria-label="Salida">
           <h2>Salida</h2>
@@ -228,6 +242,36 @@ export default function App() {
             {knob(ParamId.volume)}
             <Scope analyser={analyser} />
           </div>
+        </section>
+
+        <section className="panel lfo" aria-label="LFO">
+          <h2>LFO</h2>
+          {choice(ParamId.lfoShape)}
+          {choice(ParamId.lfoTarget)}
+          <div className="knobs">{[ParamId.lfoRate, ParamId.lfoDepth].map(knob)}</div>
+        </section>
+        <section className="panel wet" aria-label="Wet">
+          <h2>Wet</h2>
+          {choice(ParamId.wetMode)}
+          <div className="knobs">{[ParamId.wetMix, ParamId.wetTime, ParamId.wetModify].map(knob)}</div>
+          <p className="panel-hint">{wetHint}</p>
+          {choice(ParamId.routeOrder)}
+        </section>
+        <section className={`panel loop ${glitchOn ? '' : 'dimmed'}`} aria-label="Micro-loop">
+          <h2>Micro-loop</h2>
+          <div className="knobs">
+            {knob(ParamId.glitchMix)}
+            {knob(ParamId.glitchGrainSize)}
+            {dropdown(ParamId.loopInterval)}
+            {knob(ParamId.loopJumps)}
+            {knob(ParamId.glitchHold)}
+          </div>
+          <div className="knobs">
+            {[ParamId.glitchDegrade, ParamId.glitchChaos, ParamId.glitchReverse, ParamId.glitchTilt].map(knob)}
+            {toggle(ParamId.autoGlitch)}
+            {toggle(ParamId.loopKeep)}
+          </div>
+          {!glitchOn && <p className="panel-hint">Prendé Auto-Glitch para que el micro-loop procese el sinte.</p>}
         </section>
       </main>
 

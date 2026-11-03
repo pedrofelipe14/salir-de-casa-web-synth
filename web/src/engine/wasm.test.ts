@@ -17,6 +17,7 @@ interface Engine {
   sdc_left(): number
   sdc_right(): number
   sdc_active_voices(): number
+  sdc_is_looping(): number
 }
 
 function load(): Engine {
@@ -57,10 +58,18 @@ describe.skipIf(!existsSync(wasmUrl))('compiled engine (sdc.wasm)', () => {
     expect(engine.sdc_active_voices()).toBe(1)
   })
 
+  it('runs the micro-loop on the synth when Auto-Glitch is on', () => {
+    const engine = load()
+    engine.sdc_set_param(ParamId.autoGlitch, 1)
+    engine.sdc_set_param(ParamId.glitchMix, 1)
+    engine.sdc_note_on(60, 1)
+    expect(renderRms(engine, 200)).toBeGreaterThan(0.01) // ~0.5 s: past the first grain capture
+    expect(engine.sdc_is_looping()).toBe(1)
+  })
+
   it('releases notes and goes quiet', () => {
     const engine = load()
     engine.sdc_set_param(ParamId.release, 0.02)
-    engine.sdc_set_param(ParamId.delayMix, 0)
     engine.sdc_note_on(64, 1)
     renderRms(engine, 20)
     engine.sdc_note_off(64)

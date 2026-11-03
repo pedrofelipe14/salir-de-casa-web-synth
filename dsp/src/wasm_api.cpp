@@ -38,4 +38,5 @@ EMSCRIPTEN_KEEPALIVE void sdc_process(int numFrames)
 EMSCRIPTEN_KEEPALIVE float* sdc_left() { return outLeft; }
 EMSCRIPTEN_KEEPALIVE float* sdc_right() { return outRight; }
 EMSCRIPTEN_KEEPALIVE int sdc_active_voices() { return synth.activeVoiceCount(); }
+EMSCRIPTEN_KEEPALIVE int sdc_is_looping() { return synth.isLooping() ? 1 : 0; }
 }

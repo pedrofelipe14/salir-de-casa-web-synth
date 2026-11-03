@@ -8,6 +8,6 @@ mkdir -p web/public
     -Idsp/include dsp/src/wasm_api.cpp \
     -o web/public/sdc.wasm \
     --no-entry -sSTANDALONE_WASM=1 \
-    -sINITIAL_MEMORY=8MB -sALLOW_MEMORY_GROWTH=0 -sSTACK_SIZE=256KB
+    -sINITIAL_MEMORY=32MB -sALLOW_MEMORY_GROWTH=0 -sSTACK_SIZE=256KB
 
 echo "web/public/sdc.wasm: $(wc -c < web/public/sdc.wasm) bytes"

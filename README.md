@@ -17,17 +17,25 @@ It's the web version of the [Salir de Casa VST3 plugin](https://github.com/pedro
 - **Two oscillators** per voice: sine, saw, square, triangle, or a **custom waveform you shape by dragging points**.
 - **Resonant low-pass filter** with envelope modulation, plus an amplitude **ADSR**.
 - **LFO** routed to filter, pitch or volume (sine, triangle, saw, square or sample & hold).
-- **Stereo ping-pong delay** with damped repeats, and a soft output limiter.
+- **Wet channel** with three modes, as in the plugin:
+  - **Reverb**: Freeverb, the same algorithm the plugin gets from JUCE;
+  - **Delay**: tape-style, with repeats that darken;
+  - **Slip**: repeats played backwards or an octave away.
+- **Micro-loop glitch**, a port of the plugin's engine:
+  - it records the synth live, freezes grains and loops them, transposed by musical intervals;
+  - it flips them backwards and degrades them (bit/rate crush) the longer they repeat;
+  - "Caos" adds tape wow and random reverses.
+- Configurable routing (Loop → Wet or Wet → Loop), plus a soft output limiter.
 - Play it with the **mouse or touch** (slide for glissando), the **computer keyboard** or a **MIDI controller** (Web MIDI).
-- **Presets** and a live **oscilloscope**.
+- The plugin's **factory presets** and a live **oscilloscope**.
 
 ## How it works
 
 ```
 React UI (main thread)                      AudioWorklet (audio thread)
   knobs · wave editor · keyboard · MIDI ──►   synth-processor.js
-           postMessage(note / param)           └─ sdc.wasm  (C++ engine, 39 KB)
-                                                   8 voices → delay → limiter → speakers
+           postMessage(note / param)           └─ sdc.wasm  (C++ engine, 56 KB)
+                                                   8 voices → wet ⇄ micro-loop → limiter → speakers
 ```
 
 - **`dsp/`**: the engine in portable, header-only C++17 with no dependencies.
@@ -35,13 +43,19 @@ React UI (main thread)                      AudioWorklet (audio thread)
   - A Catmull-Rom curve for the custom waveform.
   - A TPT state-variable filter (stable under fast modulation).
   - Linear ADSR, per-voice LFO, DC blocking and de-clicking on voice steals.
+  - The wet channel (Freeverb, tape delay, slip) and the granular micro-loop, both ported from the VST3 without JUCE.
 - **`dsp/src/wasm_api.cpp`**: a small C API compiled with Emscripten to a **standalone `.wasm` with no JS glue**. The worklet instantiates it directly and reads audio straight from the module's memory, with no allocations on the audio thread.
 - **`web/`**: the React app. Parameter changes and notes travel to the worklet as messages. The UI keeps a TypeScript mirror of the engine's parameter table, and a test fails if the two ever drift apart.
 
 ## Tests
 
-- **17 native C++ tests** cover the DSP: oscillators stay bounded with no DC offset, the custom waveform follows its points, envelope timing is right, the filter passes lows and cuts highs, it stays stable at extreme settings, voice stealing works, and the output never exceeds full scale.
-- **26 web tests (Vitest)** cover knob mapping, value formatting and the computer-keyboard layout. They also check that the parameter table matches the C++ header, and they **load the real compiled `sdc.wasm`** to check it plays notes and goes quiet when they're released.
+- **24 native C++ tests** cover the DSP:
+  - oscillators stay bounded with no DC offset, and the custom waveform follows its points;
+  - envelope timing is right, and the filter passes lows, cuts highs and stays stable at extreme settings;
+  - voice stealing works and the output never exceeds full scale;
+  - reverb and delay leave tails, and slip stays stable at every speed;
+  - the micro-loop only runs with Auto-Glitch on, keeps looping when "Mantener" is on, and otherwise fades out with the input.
+- **31 web tests (Vitest)** cover knob mapping, value formatting and the computer-keyboard layout. They also check that the parameter table matches the C++ header, and they **load the real compiled `sdc.wasm`** to check it plays notes, runs the micro-loop and goes quiet when notes are released.
 - **GitHub Actions** runs all of it on every push, then deploys the site to GitHub Pages.
 
 ## Running locally

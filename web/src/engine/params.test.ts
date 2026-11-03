@@ -55,6 +55,10 @@ describe('value labels', () => {
     [ParamId.volume, -6, '-6.0 dB'],
     [ParamId.lfoRate, 0.35, '0.35 Hz'],
     [ParamId.lfoTarget, 1, 'Tono'],
+    [ParamId.glitchGrainSize, 250, '250 ms'],
+    [ParamId.loopInterval, 6, '+5ta'],
+    [ParamId.wetMode, 2, 'Slip'],
+    [ParamId.autoGlitch, 1, 'Sí'],
   ])('param %s = %s reads "%s"', (id, value, text) => {
     expect(formatValue(PARAMS[id], value)).toBe(text)
   })

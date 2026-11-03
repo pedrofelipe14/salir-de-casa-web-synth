@@ -1,4 +1,4 @@
-// Native tests for the DSP core. They run on every push (see .github/workflows/ci.yml)
+// Native tests for the DSP core (synth, wet channel and micro-loop). They run on every push (see .github/workflows/ci.yml)
 // before the same code is compiled to WebAssembly.
 
 #include <cmath>
@@ -68,7 +68,7 @@ std::unique_ptr<sdc::Synth> makeSynth()
 {
     auto s = std::make_unique<sdc::Synth>();
     s->setSampleRate(sampleRate);
-    s->setParam(sdc::Param::delayMix, 0.0f); // most tests want the dry signal
+    // Defaults already leave the wet channel and the micro-loop off, so tests hear the dry synth.
     return s;
 }
 
@@ -253,8 +253,12 @@ TEST(output_never_exceeds_full_scale)
     s->setParam(sdc::Param::volume, 6.0f);
     s->setParam(sdc::Param::osc2Level, 1.0f);
     s->setParam(sdc::Param::resonance, 10.0f);
-    s->setParam(sdc::Param::delayMix, 1.0f);
-    s->setParam(sdc::Param::delayFeedback, 0.95f);
+    s->setParam(sdc::Param::wetMode, 1.0f); // delay
+    s->setParam(sdc::Param::wetMix, 1.0f);
+    s->setParam(sdc::Param::wetModify, 1.0f); // maximum feedback
+    s->setParam(sdc::Param::autoGlitch, 1.0f);
+    s->setParam(sdc::Param::glitchMix, 1.0f);
+    s->setParam(sdc::Param::glitchDegrade, 1.0f);
     for (int n = 0; n < 8; ++n)
         s->noteOn(36 + n * 3, 1.0f);
     std::vector<float> r;
@@ -266,20 +270,117 @@ TEST(output_never_exceeds_full_scale)
     CHECK(peak <= 1.0f);
 }
 
-TEST(delay_echoes_cross_to_the_right_channel)
+// ---------------------------------------------------------------- wet
+
+/** Plays a short note, waits until the dry sound is gone, then returns the RMS of what's left. */
+float tailAfterShortNote(sdc::Synth& s)
+{
+    s.setParam(sdc::Param::release, 0.01f);
+    s.noteOn(60, 1.0f);
+    render(s, 2400);
+    s.noteOff(60);
+    render(s, 4800); // the dry note is over by now
+    return rms(render(s, 24000));
+}
+
+TEST(wet_is_off_by_default)
 {
     auto s = makeSynth();
-    s->setParam(sdc::Param::delayMix, 1.0f);
-    s->setParam(sdc::Param::delayTime, 0.1f);
+    CHECK(tailAfterShortNote(*s) < 1.0e-5f);
+}
+
+TEST(reverb_leaves_a_tail)
+{
+    auto s = makeSynth();
+    s->setParam(sdc::Param::wetMode, 0.0f);
+    s->setParam(sdc::Param::wetMix, 0.6f);
+    s->setParam(sdc::Param::wetTime, 0.9f);
+    CHECK(tailAfterShortNote(*s) > 0.001f);
+}
+
+TEST(delay_repeats_after_the_note)
+{
+    auto s = makeSynth();
+    s->setParam(sdc::Param::wetMode, 1.0f);
+    s->setParam(sdc::Param::wetMix, 0.6f);
+    s->setParam(sdc::Param::wetTime, 0.5f);   // ~200 ms
+    s->setParam(sdc::Param::wetModify, 0.6f); // feedback
+    CHECK(tailAfterShortNote(*s) > 0.001f);
+}
+
+TEST(slip_mode_stays_stable_at_every_speed)
+{
+    for (float modify : { 0.1f, 0.4f, 0.6f, 0.9f }) // reverse, half, reverse octave-up, octave-up
+    {
+        auto s = makeSynth();
+        s->setParam(sdc::Param::wetMode, 2.0f);
+        s->setParam(sdc::Param::wetMix, 1.0f);
+        s->setParam(sdc::Param::wetModify, modify);
+        s->noteOn(60, 1.0f);
+        std::vector<float> out = render(*s, 48000);
+        CHECK(allFinite(out));
+        CHECK(rms(out) > 0.001f);
+    }
+}
+
+// ---------------------------------------------------------------- micro-loop
+
+TEST(micro_loop_only_runs_with_auto_glitch_on)
+{
+    auto s = makeSynth();
+    s->setParam(sdc::Param::glitchMix, 1.0f);
+    s->noteOn(60, 1.0f);
+    render(*s, 24000);
+    CHECK(!s->isLooping());
+
+    s->setParam(sdc::Param::autoGlitch, 1.0f);
+    render(*s, 24000);
+    CHECK(s->isLooping());
+}
+
+TEST(kept_loop_keeps_sounding_after_the_note_ends)
+{
+    auto s = makeSynth();
+    s->setParam(sdc::Param::autoGlitch, 1.0f);
+    s->setParam(sdc::Param::glitchMix, 1.0f);
+    s->setParam(sdc::Param::glitchHold, 1.0f);
+    s->setParam(sdc::Param::loopKeep, 1.0f);
+    CHECK(tailAfterShortNote(*s) > 0.001f);
+    CHECK(s->isLooping());
+}
+
+TEST(loop_fades_out_with_the_input_unless_kept)
+{
+    auto s = makeSynth();
+    s->setParam(sdc::Param::autoGlitch, 1.0f);
+    s->setParam(sdc::Param::glitchMix, 1.0f);
+    s->setParam(sdc::Param::glitchHold, 1.0f);
     s->setParam(sdc::Param::release, 0.01f);
     s->noteOn(60, 1.0f);
-    render(*s, 480);
+    render(*s, 24000);
     s->noteOff(60);
-    render(*s, 2400); // dry note has faded out
-    // Ping-pong: the first echo (0.1 s) is on the left, the second (0.2 s) crosses right.
-    std::vector<float> r;
-    render(*s, 9600, &r);
-    CHECK(rms(r) > 0.001f); // the right side only ever hears echoes
+    render(*s, 48000); // gate closes ~0.25 s after the input goes quiet
+    CHECK(rms(render(*s, 4800)) < 1.0e-4f);
+}
+
+TEST(micro_loop_survives_extreme_settings)
+{
+    auto s = makeSynth();
+    s->setParam(sdc::Param::autoGlitch, 1.0f);
+    s->setParam(sdc::Param::glitchMix, 1.0f);
+    s->setParam(sdc::Param::glitchGrainSize, 20.0f);
+    s->setParam(sdc::Param::loopInterval, 9.0f); // +2 octaves
+    s->setParam(sdc::Param::loopJumps, 1.0f);
+    s->setParam(sdc::Param::glitchChaos, 1.0f);
+    s->setParam(sdc::Param::glitchReverse, 1.0f);
+    s->setParam(sdc::Param::glitchDegrade, 1.0f);
+    for (int k = 0; k < 20; ++k) // staccato notes keep grabbing fresh grains
+    {
+        s->noteOn(48 + k, 1.0f);
+        CHECK(allFinite(render(*s, 2000)));
+        s->noteOff(48 + k);
+        CHECK(allFinite(render(*s, 1000)));
+    }
 }
 
 TEST(params_are_clamped_and_nan_is_ignored)

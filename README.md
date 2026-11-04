@@ -1,122 +1,122 @@
 <div align="center">
 
-# Salir de Casa — Web Synth
+# Salir de Casa — Sintetizador web
 
-**A glitch synthesizer that runs in your browser.**
-A C++ DSP engine compiled to WebAssembly, running in real time inside an AudioWorklet, with a React + TypeScript interface.
+**Un sintetizador glitch que corre en el navegador.**
+Un motor DSP en C++ compilado a WebAssembly, que funciona en tiempo real dentro de un AudioWorklet, con interfaz en React + TypeScript.
 
-**English** · [Español](README.es.md)
+**Español** · [English](README.en.md)
 
-[![Play it live](https://img.shields.io/badge/▶_play_it_live-a8e6b0?style=for-the-badge&labelColor=163524)](https://pedrofelipe14.github.io/salir-de-casa-web-synth/)
+[![Tocalo en vivo](https://img.shields.io/badge/▶_tocalo_en_vivo-a8e6b0?style=for-the-badge&labelColor=163524)](https://pedrofelipe14.github.io/salir-de-casa-web-synth/)
 
 [![CI](https://github.com/pedrofelipe14/salir-de-casa-web-synth/actions/workflows/ci.yml/badge.svg)](https://github.com/pedrofelipe14/salir-de-casa-web-synth/actions/workflows/ci.yml)
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)
 ![WebAssembly](https://img.shields.io/badge/WebAssembly-56_KB-654FF0?logo=webassembly&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![Tests](https://img.shields.io/badge/tests-58_passing-2ea44f)
+![Tests](https://img.shields.io/badge/tests-58_pasando-2ea44f)
 
-<a href="https://pedrofelipe14.github.io/salir-de-casa-web-synth/"><img src="docs/demo.gif" alt="Playing chords, reshaping the waveform by dragging a point, and switching to the glitchy “Caos Total” preset" width="732"></a>
+<a href="https://pedrofelipe14.github.io/salir-de-casa-web-synth/"><img src="docs/demo.gif" alt="Tocando acordes, editando la onda con un punto y pasando al preset glitch “Caos Total”" width="732"></a>
 
 </div>
 
-It's the browser version of my [Salir de Casa VST3 plugin](https://github.com/pedrofelipe14/GlitchSynth), the instrument I use to make music. Same sound engine, same parameters, same factory presets, rebuilt without JUCE so it can run anywhere.
+Es la versión para navegador de mi [plugin VST3 Salir de Casa](https://github.com/pedrofelipe14/GlitchSynth), el instrumento que uso para hacer música. Mismo motor de sonido, mismos parámetros y mismos presets de fábrica, reescrito sin JUCE para que corra en cualquier lado.
 
-## What this project shows
+## Qué demuestra este proyecto
 
 | | |
 |---|---|
-| **Real-time audio programming** | The full chain (8 voices, 2 oscillators, reverb and granular glitch) uses **about 2 % of the real-time budget**. There are no allocations and no locks on the audio thread. |
-| **Systems C++** | A header-only C++17 engine with no dependencies. The same code is compiled natively for the tests and to WebAssembly for the browser. |
-| **Web platform depth** | AudioWorklet, WebAssembly loaded **with no Emscripten JS glue**, Web MIDI, pointer events, and an accessible UI (ARIA sliders and keyboard control on every knob). |
-| **Porting and parity** | The plugin's granular micro-looper and wet effects are ported line by line, and Freeverb is implemented by hand to match JUCE's reverb. |
-| **Engineering practice** | **58 tests** in two languages, including a contract test that fails if the C++ and TypeScript parameter tables drift apart. CI runs every check, then deploys to GitHub Pages. |
-| **Product sense** | It opens on a preset that sounds good, plays from the computer keyboard, a MIDI controller or a touchscreen, and the interface is available in **English and Spanish**. |
+| **Programación de audio en tiempo real** | La cadena completa (8 voces, 2 osciladores, reverb y glitch granular) usa **alrededor del 2 % del tiempo disponible**. No pide memoria ni usa locks en el hilo de audio. |
+| **C++ de sistemas** | Un motor en C++17, solo en headers y sin dependencias. El mismo código compila nativo para los tests y a WebAssembly para el navegador. |
+| **Plataforma web a fondo** | AudioWorklet, WebAssembly cargado **sin el código JavaScript intermedio de Emscripten**, Web MIDI, pointer events e interfaz accesible (sliders ARIA y control por teclado en todas las perillas). |
+| **Port y paridad** | El micro-looper granular y los efectos WET del plugin están portados línea por línea, y Freeverb está implementado a mano para igualar la reverb de JUCE. |
+| **Prácticas de ingeniería** | **58 tests** en dos lenguajes, incluido un test de contrato que falla si las tablas de parámetros de C++ y TypeScript dejan de coincidir. El CI corre todo y después publica en GitHub Pages. |
+| **Criterio de producto** | Arranca con un preset que ya suena bien, se toca con el teclado de la compu, un controlador MIDI o una pantalla táctil, y la interfaz está en **español e inglés**. |
 
-## Try it in 30 seconds
+## Probalo en 30 segundos
 
-1. Open the **[live demo](https://pedrofelipe14.github.io/salir-de-casa-web-synth/)** and press **▶ Turn on the sound**.
-2. Play with the keyboard: **A S D F G H J** are the white keys and **W E T Y U** the black ones. **Z / X** change octave.
-3. Pick the **Caos Total** or **Loop Congelado** preset: the micro-loop starts freezing and bit-crushing what you play.
-4. **Drag a point** on the OSC 1 graph while you hold a note, and hear the waveform change.
-5. Plug in a MIDI keyboard and press **Connect MIDI**.
+1. Abrí la **[demo en vivo](https://pedrofelipe14.github.io/salir-de-casa-web-synth/)** y tocá **▶ Encender el sonido**.
+2. Tocá con el teclado: **A S D F G H J** son las teclas blancas y **W E T Y U** las negras. **Z / X** cambian de octava.
+3. Elegí el preset **Caos Total** o **Loop Congelado**: el micro-loop empieza a congelar y degradar lo que tocás.
+4. **Arrastrá un punto** del gráfico de OSC 1 mientras mantenés una nota, y escuchá cómo cambia la onda.
+5. Si tenés un teclado MIDI, conectalo con **Conectar MIDI**.
 
-## Performance
+## Rendimiento
 
-Measured with `npm run bench` (Node 24, AMD Ryzen 5 5500). The chain renders at 48 kHz in 128-frame blocks, which gives the engine a **2,667 µs** budget per block.
+Medido con `npm run bench` (Node 24, AMD Ryzen 5 5500). La cadena se procesa a 48 kHz en bloques de 128 muestras, así que el motor tiene **2.667 µs** disponibles por bloque.
 
-| Load | Time per block | Real-time budget used |
+| Carga | Tiempo por bloque | Tiempo disponible usado |
 |---|---:|---:|
-| 8 voices, 1 oscillator | 39 µs | 1.5 % |
-| 8 voices, 2 oscillators + reverb | 44 µs | 1.6 % |
-| 8 voices, 2 oscillators + reverb + micro-loop | 50 µs | 1.9 % |
-| 8 voices, custom wave + slip + micro-loop | 52 µs | 1.9 % |
+| 8 voces, 1 oscilador | 39 µs | 1,5 % |
+| 8 voces, 2 osciladores + reverb | 44 µs | 1,6 % |
+| 8 voces, 2 osciladores + reverb + micro-loop | 50 µs | 1,9 % |
+| 8 voces, onda propia + slip + micro-loop | 52 µs | 1,9 % |
 
-## Architecture
+## Arquitectura
 
 ```mermaid
 flowchart LR
-  subgraph main["Main thread"]
-    UI["React UI<br/>knobs · wave editor · piano"]
+  subgraph main["Hilo principal"]
+    UI["Interfaz React<br/>perillas · editor de onda · piano"]
     MIDI["Web MIDI"]
-    KEYS["Computer keyboard"]
+    KEYS["Teclado de la compu"]
     ENG["SynthEngine.ts"]
     UI --> ENG
     MIDI --> ENG
     KEYS --> ENG
   end
-  subgraph audio["Audio thread (AudioWorklet)"]
+  subgraph audio["Hilo de audio (AudioWorklet)"]
     PROC["synth-processor.js"]
-    WASM["sdc.wasm<br/>C++17 engine"]
-    VOICES["8 voices<br/>osc → filter → amp"]
+    WASM["sdc.wasm<br/>motor C++17"]
+    VOICES["8 voces<br/>osc → filtro → amp"]
     FX["Wet ⇄ Micro-loop"]
-    LIM["Soft limiter"]
+    LIM["Limitador suave"]
     PROC --> WASM --> VOICES --> FX --> LIM
   end
-  ENG -- "postMessage<br/>notes · params · wave points" --> PROC
-  LIM --> OUT(("Speakers"))
-  LIM -. "AnalyserNode" .-> SCOPE["Oscilloscope"]
+  ENG -- "postMessage<br/>notas · parámetros · puntos de onda" --> PROC
+  LIM --> OUT(("Parlantes"))
+  LIM -. "AnalyserNode" .-> SCOPE["Osciloscopio"]
 ```
 
-**Inside the engine (`dsp/include/sdc/`)**
+**Dentro del motor (`dsp/include/sdc/`)**
 
-- `oscillator.h`: PolyBLEP anti-aliased saw and square waves, plus a custom wave read from a table.
-- `custom_wave.h`: 8 draggable points joined by a periodic Catmull-Rom curve and rendered into a 256-sample table.
-- `filter.h`: a TPT state-variable low-pass (Zavalishin / Simper), stable under audio-rate cutoff modulation.
-- `voice.h`: two oscillators, ADSR, a per-voice LFO, DC blocking, and de-clicking when a voice is stolen.
-- `wet.h`, `reverb.h`: reverb (Freeverb), tape delay with darkening repeats, and slip (reverse or octave-shifted repeats).
-- `glitch.h`: a granular micro-looper that records live input and freezes and crossfades grains. It transposes them by musical intervals, flips them backwards and bit-crushes them as they repeat. "Chaos" adds tape wow.
-- `synth.h`: voice allocation, stealing released voices first and then the oldest, plus routing that matches the plugin's `processBlock`.
+- `oscillator.h`: sierra y cuadrada con anti-aliasing PolyBLEP, más una onda propia que se lee de una tabla.
+- `custom_wave.h`: 8 puntos arrastrables unidos por una curva Catmull-Rom periódica, que se guarda en una tabla de 256 muestras.
+- `filter.h`: un pasa-bajos *state-variable* TPT (Zavalishin / Simper), estable aunque el corte se module muy rápido.
+- `voice.h`: dos osciladores, ADSR, un LFO por voz, bloqueo de DC y *de-click* cuando se reutiliza una voz.
+- `wet.h`, `reverb.h`: reverb (Freeverb), delay de cinta con repeticiones que se oscurecen, y slip (repeticiones al revés o a otra octava).
+- `glitch.h`: un micro-looper granular que graba la entrada en vivo y congela granos, con fundidos entre uno y otro. Los transpone a intervalos musicales, los da vuelta y los degrada a medida que se repiten. "Caos" le suma vibrato de cinta.
+- `synth.h`: reparte las notas entre las voces, reutiliza primero las que se están apagando y después la más vieja, y rutea igual que el `processBlock` del plugin.
 
-## Engineering decisions
+## Decisiones técnicas
 
-- **No JUCE in the engine.** JUCE doesn't target the browser. Writing the DSP as dependency-free headers lets one codebase build for native tests and for WebAssembly.
-- **A standalone `.wasm` with no JS glue.** AudioWorklets can't fetch or import scripts on their own. The main thread fetches the bytes once and passes them in, and the worklet instantiates the module itself. That keeps it to 56 KB and avoids a loader.
-- **Nothing allocates on the audio thread.** Every buffer is allocated in `prepare()`, and WebAssembly memory growth is turned off. That makes the `Float32Array` views over the output buffers permanently valid.
-- **Messages instead of SharedArrayBuffer.** SharedArrayBuffer needs COOP/COEP headers that GitHub Pages can't send. Parameter changes are rare compared with 375 audio blocks a second, so messages are enough.
-- **Two parameter tables, one contract.** The UI needs labels, units and knob curves, while the engine needs ranges. A test parses the C++ header and compares the two tables, so they can't silently disagree.
-- **Clicks are bugs.** Grain boundaries are crossfaded, stolen voices fade out, parameters are smoothed, and square or random LFO steps are slightly rounded.
+- **Sin JUCE en el motor.** JUCE no compila para el navegador. Escribir el DSP como headers sin dependencias permite usar el mismo código para los tests nativos y para WebAssembly.
+- **Un `.wasm` independiente, sin código JavaScript intermedio.** Un AudioWorklet no puede descargar ni importar scripts por su cuenta. El hilo principal baja los bytes una vez y se los pasa, y el worklet carga el módulo directamente. Así pesa 56 KB y no hace falta un cargador.
+- **Nada pide memoria en el hilo de audio.** Todos los buffers se crean en `prepare()` y el crecimiento de memoria de WebAssembly está desactivado. Por eso las vistas `Float32Array` sobre los buffers de salida nunca dejan de ser válidas.
+- **Mensajes en lugar de SharedArrayBuffer.** SharedArrayBuffer necesita headers COOP/COEP que GitHub Pages no manda. Los cambios de parámetros son pocos comparados con los 375 bloques de audio por segundo, así que los mensajes alcanzan.
+- **Dos tablas de parámetros, un contrato.** La interfaz necesita nombres, unidades y curvas de perilla, y el motor necesita rangos. Un test lee el header de C++ y compara las dos tablas, así nunca pueden quedar distintas sin que se note.
+- **Un click es un bug.** Los granos tienen fundidos entre sí, las voces reutilizadas se apagan suave, los parámetros cambian de forma gradual y los saltos del LFO cuadrado o aleatorio se redondean un poco.
 
 ## Tests
 
-- **24 native C++ tests** (`dsp/tests`), built with `/W4` and `-Wall -Wextra -Wpedantic` and no warnings. They check that:
-  - oscillators stay bounded, have no DC offset and the custom waveform follows its points;
-  - envelope timing is right;
-  - the filter passes low frequencies and cuts high ones, and stays stable at extreme settings;
-  - voice stealing works and the output never exceeds full scale;
-  - reverb and delay leave tails, and slip mode stays stable at every speed;
-  - the micro-loop runs only with Auto-Glitch on, keeps looping when held, and otherwise fades out with the input.
-- **34 web tests** (Vitest) cover:
-  - knob curves and value formatting;
-  - the computer-keyboard layout;
-  - translations: nothing exists in only one language;
-  - the C++ ↔ TypeScript parameter contract;
-  - the **real compiled `sdc.wasm`**: it plays notes, runs the micro-loop and goes silent when notes are released.
-- **CI** (GitHub Actions) runs the native tests, builds the engine with Emscripten, runs the typecheck, tests and build, and then deploys to GitHub Pages.
+- **24 tests nativos en C++** (`dsp/tests`), compilados con `/W4` y `-Wall -Wextra -Wpedantic` sin un solo warning. Verifican que:
+  - los osciladores no se pasan de rango, no tienen DC y la onda propia sigue sus puntos;
+  - la envolvente respeta sus tiempos;
+  - el filtro deja pasar los graves, corta los agudos y es estable en valores extremos;
+  - la reutilización de voces funciona y la salida nunca supera el máximo;
+  - la reverb y el delay dejan cola, y el slip es estable en todas sus velocidades;
+  - el micro-loop solo corre con Auto-Glitch, sigue con "Mantener" y, si no, se apaga con la entrada.
+- **34 tests web** (Vitest) cubren:
+  - curvas de las perillas y formato de los valores;
+  - el teclado de la compu;
+  - traducciones: no queda nada en un solo idioma;
+  - el contrato de parámetros entre C++ y TypeScript;
+  - el **`sdc.wasm` compilado real**: toca notas, corre el micro-loop y hace silencio al soltarlas.
+- **CI** (GitHub Actions): corre los tests nativos, compila el motor con Emscripten, hace el chequeo de tipos, los tests y el build, y publica en GitHub Pages.
 
-## Running locally
+## Correrlo localmente
 
-Requirements: [Emscripten](https://emscripten.org/docs/getting_started/downloads.html), Node 20+ and CMake.
+Requisitos: [Emscripten](https://emscripten.org/docs/getting_started/downloads.html), Node 20 o más nuevo y CMake.
 
 ```sh
 ./scripts/build-wasm.sh              # C++ → web/public/sdc.wasm
@@ -124,23 +124,23 @@ Requirements: [Emscripten](https://emscripten.org/docs/getting_started/downloads
 cd web
 npm install
 npm run dev                          # http://localhost:5173
-npm test                             # web tests (needs the .wasm)
-npm run bench                        # real-time budget benchmark
+npm test                             # tests web (necesitan el .wasm)
+npm run bench                        # benchmark de tiempo real
 
-# native DSP tests
+# tests nativos del DSP
 cmake -S dsp -B dsp/build && cmake --build dsp/build && ctest --test-dir dsp/build
 ```
 
-## Project layout
+## Estructura
 
 ```
 dsp/
-  include/sdc/   the engine (header-only C++17)
-  src/           wasm_api.cpp: the C API exported to WebAssembly
-  tests/         native tests
+  include/sdc/   el motor (C++17, solo headers)
+  src/           wasm_api.cpp: la API en C que se exporta a WebAssembly
+  tests/         tests nativos
 web/
-  public/        synth-processor.js (AudioWorklet) and the built sdc.wasm
-  src/engine/    engine bridge, parameter table, presets, waveform math, keyboard
+  public/        synth-processor.js (AudioWorklet) y el sdc.wasm compilado
+  src/engine/    puente al motor, tabla de parámetros, presets, matemática de la onda, teclado
   src/components/ Knob, WaveEditor, Piano, Scope, Choice, Toggle, Dropdown
 scripts/         build-wasm.sh
 ```

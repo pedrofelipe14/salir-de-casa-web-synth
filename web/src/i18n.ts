@@ -5,7 +5,7 @@ export type { Lang }
 /** Every piece of interface text, in Spanish and English. Parameter names live in engine/params.ts. */
 export const STRINGS = {
   es: {
-    tagline: 'web synth · C++ → WebAssembly',
+    tagline: 'synth · C++ → WebAssembly',
     preset: 'Preset',
     edited: '(editado)',
     midi: { off: 'Conectar MIDI', on: 'MIDI conectado', unsupported: 'MIDI no disponible', denied: 'MIDI bloqueado' },
@@ -37,7 +37,7 @@ export const STRINGS = {
     language: 'Idioma',
   },
   en: {
-    tagline: 'web synth · C++ → WebAssembly',
+    tagline: 'synth · C++ → WebAssembly',
     preset: 'Preset',
     edited: '(edited)',
     midi: { off: 'Connect MIDI', on: 'MIDI connected', unsupported: 'MIDI unavailable', denied: 'MIDI blocked' },

@@ -207,7 +207,7 @@ export default function App() {
     <div className="app">
       <header className="top">
         <div className="brand">
-          <h1>salir de casa</h1>
+          <h1>salir de casa online</h1>
           <span className="tagline">{t.tagline}</span>
         </div>
         <div className="top-controls">

@@ -1,6 +1,6 @@
 <div align="center">
 
-# Salir de Casa — Web Synth
+# Salir de Casa Online
 
 **A glitch synthesizer that runs in your browser.**
 A C++ DSP engine compiled to WebAssembly, running in real time inside an AudioWorklet, with a React + TypeScript interface.

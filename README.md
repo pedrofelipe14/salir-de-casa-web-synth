@@ -1,6 +1,6 @@
 <div align="center">
 
-# Salir de Casa — Sintetizador web
+# Salir de Casa Online
 
 **Un sintetizador glitch que corre en el navegador.**
 Un motor DSP en C++ compilado a WebAssembly, que funciona en tiempo real dentro de un AudioWorklet, con interfaz en React + TypeScript.
